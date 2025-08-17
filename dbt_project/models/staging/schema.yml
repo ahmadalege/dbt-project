@@ -1,0 +1,222 @@
+version: 2
+
+models:
+  - name: stg_ecommerce__orders
+    description: "Staging model for raw order data, cleaned and standardized."
+    columns:
+      - name: order_id
+        description: "Unique identifier for each order."
+        tests:
+          - not_null
+          - unique
+      - name: user_id
+        description: "Foreign key linking to the users dimension."
+        tests:
+          - not_null
+      - name: status
+        description: "Current status of the order (e.g., 'complete', 'procssing', 'returned')."
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                ["Complete", "Processing", "Shipped", "Cancelled", "Returned"]
+      - name: gender
+        description: "Gender of the user who placed the order."
+      - name: num_of_item
+        description: "Number of unique items in the order."
+        tests:
+          - not_null
+          - dbt_utils.at_least_one
+
+  - name: stg_ecommerce__products
+    description: "Staging model for raw product data, with cleaned pricing and attributes."
+    columns:
+      - name: id
+        description: "Unique identifier for each product."
+        tests:
+          - not_null
+          - unique
+      - name: cost
+        description: "The cost of the product to the business."
+        tests:
+          - not_null
+
+      - name: category
+        description: "Category the product belongs to (e.g., 'Apparel', 'Accessories')."
+        tests:
+          - not_null
+      - name: name
+        description: "Name of the product."
+        tests:
+          - not_null
+      - name: brand
+        description: "Brand of the product."
+      - name: retail_price
+        description: "The price at which the product is retailed to customers."
+        tests:
+          - not_null
+
+      - name: department
+        description: "Department the product belongs to (e.g., 'Men', 'Women')."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["Men", "Women"]
+      - name: sku
+        description: "Stock Keeping Unit for the product."
+        tests:
+          - not_null
+          - unique
+
+  - name: stg_ecommerce__users
+    description: "Staging model for raw user (customer) data."
+    columns:
+      - name: id
+        description: "Unique identifier for each user."
+        tests:
+          - not_null
+          - unique
+      - name: first_name
+        description: "First name of the user."
+      - name: last_name
+        description: "Last name of the user."
+      - name: email
+        description: "Email address of the user."
+        tests:
+          - unique
+      - name: age
+        description: "Age of the user."
+      - name: gender
+        description: "Gender of the user."
+      - name: state
+        description: "State of residence for the user."
+      - name: city
+        description: "City of residence for the user."
+      - name: country
+        description: "Country of residence for the user."
+        tests:
+          - not_null
+      - name: traffic_source
+        description: "The original traffic source that brought the user to the site."
+      - name: created_at
+        description: "Timestamp when the user account was created."
+        tests:
+          - not_null
+
+  - name: stg_ecommerce__order_items
+    description: "Staging model for individual items within orders."
+    columns:
+      - name: id
+        description: "Unique identifier for each order item."
+        tests:
+          - not_null
+          - unique
+      - name: order_id
+        description: "Foreign key linking to the orders fact table."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_ecommerce__orders')
+              field: order_id
+      - name: user_id
+        description: "Foreign key linking to the users dimension."
+        tests:
+          - not_null
+      - name: product_id
+        description: "Foreign key linking to the products dimension."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_ecommerce__products')
+              field: id
+      - name: inventory_item_id
+        description: "Foreign key linking to the inventory items dimension."
+        tests:
+          - not_null
+      - name: status
+        description: "Status of the individual order item (e.g., 'shipped', 'returned')."
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                ["Shipped", "Processing", "Returned", "Cancelled", "Complete"]
+
+  - name: stg_ecommerce__events
+    description: "Staging model for user web events (e.g., page views, add to cart)."
+    columns:
+      - name: id
+        description: "Unique identifier for each event."
+        tests:
+          - not_null
+          - unique
+      - name: user_id
+        description: "Foreign key linking to the users dimension."
+        tests:
+          - not_null
+          - relationships:
+              field: id
+              to: ref('stg_ecommerce__users')
+      - name: city
+        description: "City where the event occurred."
+      - name: state
+        description: "State where the event occurred."
+      - name: traffic_source
+        description: "Source of the traffic leading to the event."
+      - name: event_type
+        description: "Type of event recorded (e.g., 'email')."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["Email", "YouTube", "Adwords", "Facebook", "Organic"]
+
+  - name: stg_ecommerce__inventory_items
+    description: "Staging model for inventory item details, including product attributes."
+    columns:
+      - name: id
+        description: "Unique identifier for each inventory item instance."
+        tests:
+          - not_null
+          - unique
+      - name: product_id
+        description: "Foreign key linking to the products dimension."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_ecommerce__products')
+              field: id
+      - name: created_at
+        description: "Timestamp when the inventory item was recorded."
+        tests:
+          - not_null
+      - name: sold_at
+        description: "Timestamp when the inventory item was sold."
+      - name: cost
+        description: "Cost of this specific inventory item."
+        tests:
+          - not_null
+      - name: product_category
+        description: "Category of the associated product."
+      - name: product_name
+        description: "Name of the associated product."
+      - name: product_brand
+        description: "Brand of the associated product."
+      - name: product_retail_price
+        description: "Retail price of the associated product."
+      - name: product_department
+        description: "Department of the associated product."
+      - name: product_sku
+        description: "SKU of the associated product."
+
+  - name: stg_ecommerce__distribution_centers
+    description: "Staging model for details about product distribution centers."
+    columns:
+      - name: id
+        description: "Unique identifier for each distribution center."
+        tests:
+          - not_null
+          - unique
+      - name: name
+        description: "Name of the distribution center."
+        tests:
+          - not_null
+          - unique
