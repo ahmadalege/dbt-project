@@ -14,25 +14,31 @@ models:
         tests:
           - not_null
       - name: status
-        description: "Current status of the order (e.g., 'complete', 'procssing', 'returned')."
+        description: "Current status of the order (e.g., 'complete', 'pending', 'returned')."
         tests:
           - not_null
           - accepted_values:
               values:
-                ["Complete", "Processing", "Shipped", "Cancelled", "Returned"]
+                ["Complete", "Processing", "Pending", "Cancelled", "Returned"]
       - name: gender
         description: "Gender of the user who placed the order."
+      - name: created_at
+        description: "Timestamp when the order was created."
+        tests:
+          - not_null
       - name: num_of_item
         description: "Number of unique items in the order."
         tests:
           - not_null
-          - dbt_utils.at_least_one
+          - dbt_utils.at_least_one:
+              arguments:
+                column_name: "num_of_item"
 
   - name: stg_ecommerce__products
     description: "Staging model for raw product data, with cleaned pricing and attributes."
     columns:
       - name: id
-        description: "Unique identifier for each product."
+        description: "Unique identifier of each product"
         tests:
           - not_null
           - unique
@@ -40,7 +46,9 @@ models:
         description: "The cost of the product to the business."
         tests:
           - not_null
-
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "`cost` >= 0"
       - name: category
         description: "Category the product belongs to (e.g., 'Apparel', 'Accessories')."
         tests:
@@ -51,11 +59,15 @@ models:
           - not_null
       - name: brand
         description: "Brand of the product."
+        tests:
+          - not_null
       - name: retail_price
         description: "The price at which the product is retailed to customers."
         tests:
           - not_null
-
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "`retail_price` >= 0"
       - name: department
         description: "Department the product belongs to (e.g., 'Men', 'Women')."
         tests:
@@ -112,25 +124,25 @@ models:
           - not_null
           - unique
       - name: order_id
-        description: "Foreign key linking to the orders fact table."
+        description: "Foreign key linking to the orders table."
         tests:
           - not_null
           - relationships:
               to: ref('stg_ecommerce__orders')
               field: order_id
       - name: user_id
-        description: "Foreign key linking to the users dimension."
+        description: "Foreign key linking to the users table."
         tests:
           - not_null
       - name: product_id
-        description: "Foreign key linking to the products dimension."
+        description: "Foreign key linking to the products table."
         tests:
           - not_null
           - relationships:
               to: ref('stg_ecommerce__products')
               field: id
       - name: inventory_item_id
-        description: "Foreign key linking to the inventory items dimension."
+        description: "Foreign key linking to the inventory items table."
         tests:
           - not_null
       - name: status
@@ -139,7 +151,19 @@ models:
           - not_null
           - accepted_values:
               values:
-                ["Shipped", "Processing", "Returned", "Cancelled", "Complete"]
+                ["Shipped", "Pending", "Returned", "Cancelled", "Complete"]
+      - name: sale_price
+        description: "The actual price the item was sold for in this specific order."
+      - name: created_at
+        description: "Timestamp when the order item was created."
+        tests:
+          - not_null
+      - name: shipped_at
+        description: "Timestamp when the order item was shipped."
+      - name: delivered_at
+        description: "Timestamp when the order item was delivered."
+      - name: returned_at
+        description: "Timestamp when the order item was returned."
 
   - name: stg_ecommerce__events
     description: "Staging model for user web events (e.g., page views, add to cart)."
@@ -150,24 +174,21 @@ models:
           - not_null
           - unique
       - name: user_id
-        description: "Foreign key linking to the users dimension."
+        description: "Foreign key linking to the users table."
         tests:
           - not_null
-          - relationships:
-              field: id
-              to: ref('stg_ecommerce__users')
       - name: city
         description: "City where the event occurred."
       - name: state
         description: "State where the event occurred."
-      - name: traffic_source
-        description: "Source of the traffic leading to the event."
       - name: event_type
-        description: "Type of event recorded (e.g., 'email')."
+        description: "Type of event recorded (e.g., 'page_view', 'add_to_cart', 'purchase')."
         tests:
           - not_null
           - accepted_values:
-              values: ["Email", "YouTube", "Adwords", "Facebook", "Organic"]
+              values: ["page_view", "add_to_cart", "purchase"]
+      - name: traffic_source
+        description: "Source of the traffic leading to the event."
 
   - name: stg_ecommerce__inventory_items
     description: "Staging model for inventory item details, including product attributes."
@@ -178,7 +199,7 @@ models:
           - not_null
           - unique
       - name: product_id
-        description: "Foreign key linking to the products dimension."
+        description: "Foreign key linking to the products table."
         tests:
           - not_null
           - relationships:
@@ -206,6 +227,13 @@ models:
         description: "Department of the associated product."
       - name: product_sku
         description: "SKU of the associated product."
+      - name: product_distribution_center_id
+        description: "ID of the distribution center for this product."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_ecommerce__distribution_centers')
+              field: id
 
   - name: stg_ecommerce__distribution_centers
     description: "Staging model for details about product distribution centers."

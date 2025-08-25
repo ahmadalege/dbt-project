@@ -8,6 +8,7 @@ SELECT
     user_id,
     status,
     gender,
+    created_at,
     num_of_item
 
 FROM source
