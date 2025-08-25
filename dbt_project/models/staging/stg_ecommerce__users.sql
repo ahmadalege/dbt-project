@@ -14,6 +14,7 @@ SELECT
     state,
     country,
     traffic_source,
-    created_at
+    created_at,
+    CAST(created_at AS TIMESTAMP) AS user_creation_timestamp
 
 FROM source

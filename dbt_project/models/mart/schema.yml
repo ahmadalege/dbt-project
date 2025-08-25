@@ -1,0 +1,238 @@
+version: 2
+
+models:
+  - name: dim_users
+    description: "A dimension table containing comprehensive details about each user, enriched with their order summary."
+    columns:
+      - name: user_id
+        description: "Unique identifier for each user (primary key)."
+        tests:
+          - not_null
+          - unique
+          - dbt_expectations.expect_column_values_to_not_be_null
+      - name: first_name
+        description: "First name of the user."
+      - name: last_name
+        description: "Last name of the user."
+      - name: email
+        description: "Email address of the user."
+        tests:
+          - unique
+          - dbt_expectations.expect_column_values_to_be_unique
+          - dbt_expectations.expect_column_values_to_match_regex:
+              arguments:
+                regex: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+              config:
+                severity: warn
+      - name: age
+        description: "Age of the user."
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+                max_value: 120
+              config:
+                severity: warn
+      - name: gender
+        description: "Gender of the user."
+        tests:
+          - accepted_values:
+              values: ["Male", "Female"]
+          - dbt_expectations.expect_column_values_to_be_in_set:
+              arguments:
+                value_set: ["Male", "Female"]
+              config:
+                severity: warn
+      - name: city
+        description: "City where the user resides."
+      - name: state
+        description: "State where the user resides."
+      - name: country
+        description: "Country where the user resides."
+        tests:
+          - dbt_expectations.expect_column_values_to_not_be_null
+      - name: traffic_source
+        description: "The original traffic source that brought the user to the site."
+      - name: user_created_at
+        description: "Timestamp when the user account was created."
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_not_be_null
+          - dbt_expectations.expect_column_values_to_be_of_type:
+              arguments:
+                column_type: timestamp
+              config:
+                severity: warn
+      - name: total_orders
+        description: "Total number of distinct orders placed by the user."
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "`total_orders` >= 0"
+          - dbt_expectations.expect_column_values_to_be_positive
+      - name: total_lifetime_spend
+        description: "Total amount spent by the user across all orders."
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "`total_lifetime_spend` >= 0"
+          - dbt_expectations.expect_column_values_to_be_positive
+      - name: first_order_date
+        description: "Date of the user's first order."
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_not_be_null
+          - dbt_expectations.expect_column_values_to_be_of_type:
+              arguments:
+                column_type: date
+              config:
+                severity: warn
+      - name: last_order_date
+        description: "Date of the user's last order."
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_not_be_null
+          - dbt_expectations.expect_column_values_to_be_of_type:
+              arguments:
+                column_type: date
+              config:
+                severity: warn
+
+  - name: dim_products
+    description: "A dimension table containing details about each product."
+    columns:
+      - name: product_id
+        description: "Unique identifier for each product (primary key)."
+        tests:
+          - not_null
+          - unique
+          - dbt_expectations.expect_column_values_to_not_be_null
+          - dbt_expectations.expect_column_values_to_be_unique
+      - name: product_name
+        description: "Name of the product."
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_not_be_null
+          - dbt_expectations.expect_column_value_lengths_to_be_between:
+              arguments:
+                min_value: 3
+                max_value: 200
+              config:
+                severity: warn
+      - name: product_brand
+        description: "Brand of the product."
+        tests:
+          - dbt_expectations.expect_column_values_to_not_be_null
+      - name: category
+        description: "Category the product belongs to."
+        tests:
+          - dbt_expectations.expect_column_values_to_not_be_null
+      - name: department
+        description: "Department the product belongs to (e.g., 'Men', 'Women')."
+        tests:
+          - accepted_values:
+              values: ["Men", "Women"]
+          - dbt_expectations.expect_column_values_to_be_in_set:
+              arguments:
+                value_set: ["Men", "Women"]
+              config:
+                severity: warn
+      - name: sku
+        description: "Stock Keeping Unit for the product."
+        tests:
+          - dbt_expectations.expect_column_values_to_not_be_null
+          - dbt_expectations.expect_column_values_to_be_unique
+      - name: product_cost
+        description: "The cost of the product to the business."
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "`product_cost` >= 0"
+          - dbt_expectations.expect_column_values_to_be_positive
+      - name: product_retail_price
+        description: "The price at which the product is retailed to customers."
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "`product_retail_price` >= 0"
+          - dbt_expectations.expect_column_values_to_be_positive
+          - dbt_expectations.expect_column_a_to_be_greater_than_column_b:
+              arguments:
+                column_a: "product_retail_price"
+                column_b: "product_cost"
+              config:
+                severity: warn
+  - name: fct_orders
+    description: "A fact table containing key metrics for each completed order, linking to user and product dimensions."
+    columns:
+      - name: order_id
+        description: "Unique identifier for each order (primary key)."
+        tests:
+          - not_null
+          - unique
+          - dbt_expectations.expect_column_values_to_not_be_null
+          - dbt_expectations.expect_column_values_to_be_unique
+      - name: user_id
+        description: "Foreign key linking to the dim_users table."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_users')
+              field: user_id
+          - dbt_expectations.expect_column_values_to_not_be_null
+          - dbt_expectations.expect_fk_column_values_to_be_in_sk_column:
+              arguments:
+                fk_column_name: "user_id"
+                sk_column_name: "user_id"
+                sk_model_name: "dim_users"
+              config:
+                severity: warn
+      - name: order_status
+        description: "Current status of the order."
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                ["Complete", "Processing", "Pending", "Cancelled", "Returned"]
+          - dbt_expectations.expect_column_values_to_be_in_set:
+              arguments:
+                value_set:
+                  ["Complete", "Processing", "Pending", "Cancelled", "Returned"]
+              config:
+                severity: warn
+      - name: gender
+        description: "Gender of the user who placed the order."
+        tests:
+          - dbt_expectations.expect_column_values_to_not_be_null
+      - name: order_created_at
+        description: "Timestamp when the order was created."
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_not_be_null
+          - dbt_expectations.expect_column_values_to_be_of_type:
+              arguments:
+                column_type: timestamp
+              config:
+                severity: warn
+      - name: order_total_revenue
+        description: "Total revenue for the order across all items."
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "`order_total_revenue` >= 0"
+          - dbt_expectations.expect_column_values_to_be_positive
+      - name: order_total_profit
+        description: "Total profit for the order across all items."
+        tests:
+          - dbt_expectations.expect_column_values_to_be_positive
+      - name: order_total_discount
+        description: "Total discount applied to the order across all items."
+        tests:
+          - dbt_expectations.expect_column_values_to_not_be_null
+      - name: total_items_ordered
+        description: "Total number of individual items in the order."
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "`total_items_ordered` > 0"
+          - dbt_expectations.expect_column_values_to_be_positive

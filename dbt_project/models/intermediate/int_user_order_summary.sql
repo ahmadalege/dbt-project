@@ -1,30 +1,17 @@
-WITH orders AS (
+WITH order_items AS (
     SELECT
         order_id,
-        user_id
-    FROM {{ ref('stg_ecommerce__orders') }}
-),
-
-order_items AS (
-    SELECT
-        order_id,
-        sale_price
+        user_id,
+        sale_price,
+        created_at
     FROM {{ ref('stg_ecommerce__order_items') }}
-),
-
-user_orders_joined AS (
-    SELECT
-        o.order_id,
-        o.user_id,
-        oi.sale_price
-    FROM orders AS o
-    LEFT JOIN order_items AS oi
-        ON o.order_id = oi.order_id
 )
 
 SELECT
     user_id,
     COUNT(DISTINCT order_id) AS total_orders,
-    SUM(sale_price) AS total_spend
-FROM user_orders_joined
+    SUM(sale_price) AS total_spend,
+    MIN(created_at) AS first_order_date,
+    MAX(created_at) AS last_order_date  
+FROM order_items
 GROUP BY user_id
