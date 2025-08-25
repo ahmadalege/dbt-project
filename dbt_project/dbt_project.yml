@@ -28,6 +28,14 @@ clean-targets: # directories to be removed by `dbt clean`
 # directory as views. These settings can be overridden in the individual model
 # files using the `{{ config(...) }}` macro.
 models:
-  +persist_docs:
-    relation: true
-    columns: true
+  dbt_project:
+    staging:
+      +materialized: view
+      persist_docs:
+        relation: true
+        columns: true
+    intermediate:
+      +materialized: table
+      persist_docs:
+        relation: true
+        columns: true

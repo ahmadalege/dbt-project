@@ -1,0 +1,212 @@
+version: 2
+
+models:
+  - name: int_order_product_details
+    description: "Combines order item and product details, including profit and discount per item, and order/order item timestamps."
+    columns:
+      - name: order_item_id
+        description: "Unique identifier for each order item."
+        tests:
+          - not_null
+          - unique
+      - name: order_id
+        description: "Foreign key to the orders table."
+        tests:
+          - not_null
+      - name: user_id
+        description: "Foreign key to the users table."
+      - name: product_id
+        description: "Foreign key to the products table."
+        tests:
+          - not_null
+      - name: sale_price
+        description: "The actual price the item was sold for in this specific order."
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "`sale_price` >= 0"
+      - name: department
+        description: "Department of the product."
+      - name: cost
+        description: "Wholesale cost of the product."
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "`cost` >= 0"
+      - name: retail_price
+        description: "Original retail price of the product."
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "`retail_price` >= 0"
+      - name: order_created_at
+        description: "Timestamp when the overall order was created."
+        tests:
+          - not_null
+      - name: order_item_created_at
+        description: "Timestamp when this specific order item was created."
+        tests:
+          - not_null
+      - name: order_item_shipped_at
+        description: "Timestamp when this specific order item was shipped."
+      - name: order_item_delivered_at
+        description: "Timestamp when this specific order item was delivered."
+      - name: order_item_returned_at
+        description: "Timestamp when this specific order item was returned."
+      - name: profit_per_item
+        description: "Profit generated from selling this specific item (sale_price - cost)."
+      - name: discount_per_item
+        description: "Discount given on this specific item (retail_price - sale_price)."
+
+  - name: int_user_order_summary
+    description: "Aggregates order-related metrics for each user, providing a summary of their purchasing behavior including dates."
+    columns:
+      - name: user_id
+        description: "Unique identifier for each user."
+        tests:
+          - not_null
+          - unique
+      - name: total_orders
+        description: "Total number of distinct orders placed by the user."
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "`total_orders` >= 0"
+      - name: total_spend
+        description: "Total amount spent by the user across all orders."
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "`total_spend` >= 0"
+      - name: first_order_date
+        description: "Date of the user's first order (based on order item creation date)."
+        tests:
+          - not_null
+      - name: last_order_date
+        description: "Date of the user's last order (based on order item creation date)."
+        tests:
+          - not_null
+
+  - name: int_product_inventory_details
+    description: "Combines product details with inventory item information and distribution center details."
+    columns:
+      - name: inventory_item_id
+        description: "Unique identifier for each inventory item instance."
+        tests:
+          - not_null
+          - unique
+      - name: product_id
+        description: "Foreign key to the products table."
+        tests:
+          - not_null
+      - name: product_category_detail
+        description: "Category of the associated product (from products table)."
+      - name: product_name_detail
+        description: "Name of the associated product (from products table)."
+      - name: product_brand_detail
+        description: "Brand of the associated product (from products table)."
+      - name: product_retail_price_detail
+        description: "Retail price of the associated product (from products table)."
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "`product_retail_price_detail` >= 0"
+      - name: product_department_detail
+        description: "Department of the associated product (from products table)."
+      - name: product_sku_detail
+        description: "SKU of the associated product (from products table)."
+      - name: inventory_created_at
+        description: "Timestamp when the inventory item was recorded."
+        tests:
+          - not_null
+      - name: inventory_sold_at
+        description: "Timestamp when the inventory item was sold."
+      - name: inventory_cost
+        description: "Cost of this specific inventory item (from inventory_items table)."
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "`inventory_cost` >= 0"
+      - name: distribution_center_name
+        description: "Name of the distribution center where the product is stored."
+      - name: distribution_center_id
+        description: "ID of the distribution center."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_ecommerce__distribution_centers')
+              field: id
+
+  - name: int_user_event_stream
+    description: "Enriches user web events with relevant user demographic details."
+    columns:
+      - name: event_id
+        description: "Unique identifier for each event."
+        tests:
+          - not_null
+          - unique
+      - name: user_id
+        description: "Foreign key to the users table."
+        tests:
+          - not_null
+      - name: first_name
+        description: "First name of the user who performed the event."
+      - name: last_name
+        description: "Last name of the user who performed the event."
+      - name: email
+        description: "Email address of the user who performed the event."
+      - name: age
+        description: "Age of the user."
+      - name: user_gender
+        description: "Gender of the user."
+      - name: user_country
+        description: "Country of the user."
+      - name: user_created_at
+        description: "Timestamp when the user account was created (from stg_ecommerce__users)."
+        tests:
+          - not_null
+      - name: event_city
+        description: "City where the event occurred."
+      - name: event_state
+        description: "State where the event occurred."
+      - name: event_type
+        description: "Type of event recorded (e.g., 'page_view', 'add_to_cart')."
+        tests:
+          - not_null
+      - name: traffic_source
+        description: "Source of the traffic leading to the event."
+
+  - name: int_daily_product_sales
+    description: "Aggregates daily sales performance metrics for each product."
+    columns:
+      - name: sale_date
+        description: "The date of the sales activity."
+        tests:
+          - not_null
+          - unique:
+              arguments:
+                column_names: ["sale_date", "product_id"]
+      - name: product_id
+        description: "Foreign key to the products table."
+        tests:
+          - not_null
+      - name: daily_orders
+        description: "Number of distinct orders containing this product on this date."
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "`daily_orders` >= 0"
+      - name: daily_items_sold
+        description: "Total number of individual items of this product sold on this date."
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "`daily_items_sold` >= 0"
+      - name: daily_revenue
+        description: "Total revenue generated by this product on this date."
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "`daily_revenue` >= 0"
+      - name: daily_profit
+        description: "Total profit generated by this product on this date."
