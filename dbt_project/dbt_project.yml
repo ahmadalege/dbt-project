@@ -39,7 +39,7 @@ models:
       persist_docs:
         relation: true
         columns: true
-    marts:
+    mart:
       +materialized: table
       persist_docs:
         relation: true
